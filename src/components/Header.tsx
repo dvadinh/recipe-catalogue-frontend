@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { Settings as SettingsIcon } from '@mui/icons-material';
 import {useAuthenticationContext} from "../contexts";
+import { Authority } from "../types";
 
 export default function Header() {
   const { user, logout } = useAuthenticationContext();
@@ -39,7 +40,7 @@ export default function Header() {
 
   const handleAdminClick = () => {
     handleMenuClose();
-    navigate('/admin');
+    navigate('/admin-dashboard');
   };
 
   const handleSignOutClick = () => {
@@ -78,7 +79,7 @@ export default function Header() {
             Recipe Catalogue
           </Typography>
 
-          {user && user.type === 'ADMIN' && (
+          {user && user.type === Authority.ADMIN && (
             <Typography
               variant="body1"
               component="div"
@@ -125,7 +126,7 @@ export default function Header() {
                   sx: {
                     mt: 1,
                     minWidth: 180,
-                    borderRadius: 2,
+                    borderRadius: '8px',
                   },
                 },
               }}

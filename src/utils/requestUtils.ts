@@ -1,7 +1,7 @@
 import axios, {AxiosError, type AxiosRequestConfig, type AxiosResponse} from "axios";
 import type {ApiErrorResponse, ApiResult} from "../types";
 
-const BACKEND_REST_API_BASE_URL = import.meta.env.VITE_BACKEND_REST_API_BASE_URL;
+export const BACKEND_REST_API_BASE_URL = import.meta.env.VITE_BACKEND_REST_API_BASE_URL;
 const IS_DEVELOPMENT_ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT === "dev";
 
 const apiClient = axios.create({

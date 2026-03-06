@@ -44,9 +44,14 @@ export async function getLinkedOAuth2Accounts(userId: number): Promise<ApiResult
   return await axiosGet<LinkedOAuth2AccountResponse[]>(`/users/${userId}/oauth2-accounts`);
 }
 
-// Unlink OAuth2 account
+// Unlink OAuth2 account (current user)
 export async function unlinkOAuth2Account(provider: string): Promise<ApiResult<void>> {
   return await axiosDelete<null, void>(`/auth/oauth2/unlink/${provider}`, null);
+}
+
+// Unlink OAuth2 account for another user (admin operation)
+export async function unlinkUserOAuth2Account(userId: number, provider: string): Promise<ApiResult<void>> {
+  return await axiosDelete<null, void>(`/users/${userId}/oauth2-accounts/${provider}`, null);
 }
 
 // Patch username and password

@@ -9,5 +9,8 @@
 
 ### Admin Dashboard
 
-- ```AdminPage.tsx``` into ```AdminDashboard.tsx```.
+- [x] ```AdminPage.tsx``` into ```AdminDashboard.tsx```.
 
+### Oauth2 Authentication
+
+- Fix setError() in ```OAuth2AuthenticationSignUpPage.tsx``` and ```OAuth2AuthenticationSignInPage.tsx```.

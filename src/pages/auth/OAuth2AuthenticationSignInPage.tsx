@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import { Google as GoogleIcon, GitHub as GitHubIcon, ArrowBack } from '@mui/icons-material';
 import { OAuth2QueryParameter } from '../../types';
+import {BACKEND_REST_API_BASE_URL} from "../../utils";
 
 export default function OAuth2AuthenticationSignInPage() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function OAuth2AuthenticationSignInPage() {
     const messageType = searchParams.get(OAuth2QueryParameter.MESSAGE_TYPE);
 
     if (message && messageType === OAuth2QueryParameter.MESSAGE_TYPE_ERROR_VALUE) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(decodeURIComponent(message));
       // Clear query params
       setSearchParams({});
@@ -35,13 +37,12 @@ export default function OAuth2AuthenticationSignInPage() {
     setError(null);
 
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_REST_API_BASE_URL ?? 'http://localhost:8081';
       const callbackUrl = `${window.location.origin}/auth/oauth2/callback?${OAuth2QueryParameter.RETURN_TO}=${OAuth2QueryParameter.RETURN_TO_SIGN_IN_VALUE}`;
       const targetUrl = encodeURIComponent(callbackUrl);
 
       // Redirect to backend OAuth2 endpoint
       // Backend will redirect to OAuth provider
-      window.location.href = `${backendUrl}/auth/oauth2/sign-in/${provider}?${OAuth2QueryParameter.TARGET_URL}=${targetUrl}`;
+      window.location.href = `${BACKEND_REST_API_BASE_URL}/auth/oauth2/sign-in/${provider}?${OAuth2QueryParameter.TARGET_URL}=${targetUrl}`;
     } catch {
       setError('Failed to initiate OAuth2 sign in. Please try again.');
       setLoading(false);

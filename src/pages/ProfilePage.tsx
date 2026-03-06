@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -21,13 +21,15 @@ import {
 } from '@mui/material';
 import { Google as GoogleIcon, GitHub as GitHubIcon, Edit as EditIcon, Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material';
 import { useAuthenticationContext } from '../contexts';
-import { getLinkedOAuth2Accounts, unlinkOAuth2Account, patchCredentials, patchUser } from '../hooks';
-import type { LinkedOAuth2AccountResponse, PatchUsernamePasswordRequest, PatchUserRequest } from '../types';
+import { getLinkedOAuth2Accounts, unlinkOAuth2Account, patchCredentials, patchUser, deleteUsers } from '../hooks';
+import type { LinkedOAuth2AccountResponse, PatchUsernamePasswordRequest, PatchUserRequest, DeleteUserRequest } from '../types';
 import { OAuth2QueryParameter, PatchRequestOperation } from '../types';
+import {BACKEND_REST_API_BASE_URL} from "../utils";
 
 export default function ProfilePage() {
-  const { user, refreshUser } = useAuthenticationContext();
+  const { user, refreshUser, logout } = useAuthenticationContext();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const [oauth2Accounts, setOauth2Accounts] = useState<LinkedOAuth2AccountResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,12 @@ export default function ProfilePage() {
   const [editedPassword, setEditedPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Map<string, string>>(new Map());
+
+  // Delete account state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check for callback message from OAuth2CallbackPage
@@ -90,10 +98,9 @@ export default function ProfilePage() {
   }, [fetchOAuth2Accounts]);
 
   const handleLinkOAuth2 = useCallback((provider: 'google' | 'github') => {
-    const backendUrl = import.meta.env.VITE_BACKEND_REST_API_BASE_URL ?? 'http://localhost:8081';
     const callbackUrl = `${window.location.origin}/auth/oauth2/callback?${OAuth2QueryParameter.RETURN_TO}=${OAuth2QueryParameter.RETURN_TO_PROFILE_VALUE}`;
     const targetUrl = encodeURIComponent(callbackUrl);
-    window.location.href = `${backendUrl}/auth/oauth2/link/${provider}?${OAuth2QueryParameter.TARGET_URL}=${targetUrl}`;
+    window.location.href = `${BACKEND_REST_API_BASE_URL}/auth/oauth2/link/${provider}?${OAuth2QueryParameter.TARGET_URL}=${targetUrl}`;
   }, []);
 
   const handleUnlinkClick = useCallback((provider: string) => {
@@ -127,6 +134,10 @@ export default function ProfilePage() {
 
   const isLinked = useCallback((provider: string) => {
     return oauth2Accounts.some(account => account.provider === provider);
+  }, [oauth2Accounts]);
+
+  const getAccount = useCallback((provider: string) => {
+    return oauth2Accounts.find(account => account.provider === provider);
   }, [oauth2Accounts]);
 
   const handleEdit = useCallback(() => {
@@ -181,12 +192,6 @@ export default function ProfilePage() {
       const userRequest: PatchUserRequest = {
         displayName: editedDisplayName,
         displayNameOperation: PatchRequestOperation.UPDATE,
-        firstName: null,
-        firstNameOperation: null,
-        lastName: null,
-        lastNameOperation: null,
-        emailAddress: null,
-        emailAddressOperation: null,
         description: null,
         descriptionOperation: null,
         type: null,
@@ -216,6 +221,45 @@ export default function ProfilePage() {
 
     setSaving(false);
   }, [user, editedUsername, editedDisplayName, editedPassword, refreshUser]);
+
+  const handleDeleteClick = useCallback(() => {
+    setShowDeleteDialog(true);
+    setDeleteConfirmationText('');
+    setDeleteError(null);
+  }, []);
+
+  const handleDeleteCancel = useCallback(() => {
+    setShowDeleteDialog(false);
+    setDeleteConfirmationText('');
+    setDeleteError(null);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!user || deleteConfirmationText !== 'DELETE MY ACCOUNT') return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    const request: DeleteUserRequest = {
+      userIds: [user.id],
+    };
+
+    const result = await deleteUsers(request);
+
+    if (result.ok) {
+      // Account deleted successfully, logout and redirect
+      await logout();
+      navigate('/');
+    } else {
+      setDeleting(false);
+      // Display error in dialog
+      if (typeof result.error.details === 'string') {
+        setDeleteError(result.error.details);
+      } else {
+        setDeleteError('Failed to delete account');
+      }
+    }
+  }, [user, deleteConfirmationText, logout, navigate]);
 
   if (!user) return null;
 
@@ -350,9 +394,13 @@ export default function ProfilePage() {
                     <GoogleIcon sx={{ color: '#4285F4' }} />
                     <Box>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>Google</Typography>
-                      {isLinked('google') && (
+                      {isLinked('google') ? (
                         <Typography variant="body2" color="text.secondary">
-                          Linked
+                          {getAccount('google')?.displayName || 'Linked'}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Not Linked
                         </Typography>
                       )}
                     </Box>
@@ -384,9 +432,13 @@ export default function ProfilePage() {
                     <GitHubIcon />
                     <Box>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>GitHub</Typography>
-                      {isLinked('github') && (
+                      {isLinked('github') ? (
                         <Typography variant="body2" color="text.secondary">
-                          Linked
+                          {getAccount('github')?.displayName || 'Linked'}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Not Linked
                         </Typography>
                       )}
                     </Box>
@@ -414,6 +466,23 @@ export default function ProfilePage() {
               </Stack>
             </>
           )}
+
+          <Divider sx={{ my: 3 }} />
+
+          {/* Danger Zone */}
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'error.main' }}>
+              Danger Zone
+            </Typography>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={handleDeleteClick}
+              disabled={deleting}
+            >
+              Delete Account
+            </Button>
+          </Box>
         </Paper>
       </Container>
 
@@ -429,6 +498,43 @@ export default function ProfilePage() {
           <Button onClick={handleUnlinkCancel}>Cancel</Button>
           <Button onClick={handleUnlinkConfirm} color="error" variant="contained">
             Unlink
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onClose={handleDeleteCancel}>
+        <DialogTitle>Confirm Delete Account</DialogTitle>
+        <DialogContent>
+          {deleteError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+          <DialogContentText sx={{ mb: 2 }}>
+            You are about to permanently delete your account. This action cannot be undone.
+          </DialogContentText>
+          <DialogContentText sx={{ mb: 2, fontWeight: 600, color: 'error.main' }}>
+            Type "DELETE MY ACCOUNT" to confirm:
+          </DialogContentText>
+          <TextField
+            fullWidth
+            value={deleteConfirmationText}
+            onChange={(e) => setDeleteConfirmationText(e.target.value)}
+            placeholder="DELETE MY ACCOUNT"
+            disabled={deleting}
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleting}>Cancel</Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleting || deleteConfirmationText !== 'DELETE MY ACCOUNT'}
+          >
+            {deleting ? <CircularProgress size={24} /> : 'Delete Account'}
           </Button>
         </DialogActions>
       </Dialog>

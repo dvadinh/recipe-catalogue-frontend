@@ -15,7 +15,8 @@ import OAuth2AuthenticationSignUpPage from './pages/auth/OAuth2AuthenticationSig
 import OAuth2AuthenticationSignInPage from './pages/auth/OAuth2AuthenticationSignInPage';
 import OAuth2CallbackPage from './pages/auth/OAuth2CallbackPage';
 import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
+import AdminDashboard from './pages/AdminDashboard';
+import UserPage from './pages/UserPage';
 import AuthenticationProvider from './contexts/AuthenticationContext.tsx';
 
 // Create MUI theme with Apple-style light grey/white palette
@@ -98,10 +99,18 @@ function App() {
                   }
                 />
                 <Route
-                  path="/admin"
+                  path="/admin-dashboard"
                   element={
                     <ProtectedRoute>
-                      <AdminPage />
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/users/:userId"
+                  element={
+                    <ProtectedRoute>
+                      <UserPage />
                     </ProtectedRoute>
                   }
                 />
